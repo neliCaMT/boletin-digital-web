@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boletín Digital | C.P.E.T. "Dr. Ernesto Guevara"</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* COLORES INSTITUCIONALES */
+        .bg-school { background-color: #DC2626; } 
+        .text-school { color: #DC2626; }
+        .bg-dark { background-color: #1F2937; }
+        .hover-school:hover { background-color: #B91C1C; }
+        
+        /* Modal */
+        .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        .modal-content { background-color: #fff; padding: 25px; border-radius: 12px; width: 90%; max-width: 800px; position: relative; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); max-height: 90vh; overflow-y: auto; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+
+    <!-- NAV -->
+    <nav class="bg-white shadow-md sticky top-0 z-40">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-20">
+                <div class="flex items-center gap-3 cursor-pointer" onclick="app.setView('landing')">
+                    <img src="logo del colegio.png" alt="Logo" class="h-12 w-12 object-contain">
+                    <div class="hidden md:block">
+                        <h1 class="font-bold text-lg text-gray-800 leading-none">Colegio Provincial</h1>
+                        <p class="text-sm font-bold text-school">"Dr. Ernesto Guevara"</p>
+                    </div>
+                </div>
+                <div id="navbar-actions" class="flex items-center gap-4"></div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN -->
+    <main id="app-root" class="flex-grow flex flex-col"></main>
+
+    <!-- MODALES -->
+    <div id="infoModal" class="modal"><div class="modal-content fade-in"><div class="flex justify-between items-center mb-4"><h2 id="modalTitle" class="text-2xl font-bold text-school"></h2><button onclick="closeModal('infoModal')"><i data-lucide="x"></i></button></div><p id="modalText" class="text-gray-700"></p></div></div>
+
+    <div id="recoverModal" class="modal"><div class="modal-content fade-in"><div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold">Recuperar Acceso</h2><button onclick="closeModal('recoverModal')"><i data-lucide="x"></i></button></div><p class="text-sm text-gray-600 mb-4">Ingrese su correo institucional. Recibirá un enlace para restablecer su clave.</p><input type="email" id="recoverEmail" placeholder="usuario@escuela.edu" class="w-full p-3 border rounded-lg mb-4"><button onclick="alert('Correo enviado a ' + document.getElementById('recoverEmail').value); closeModal('recoverModal');" class="w-full bg-school text-white py-2 rounded-lg font-bold">Enviar</button></div></div>
+
+    <!-- Modal de Gestión de Usuario (Admin) -->
+    <div id="userModal" class="modal">
+        <div class="modal-content fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Gestión de Usuario</h2>
+                <button onclick="closeModal('userModal')"><i data-lucide="x"></i></button>
+            </div>
+            <form onsubmit="event.preventDefault(); app.saveUser();" class="space-y-3">
+                <input type="hidden" id="editUserId"> <!-- ID oculto para saber si editamos -->
+                <input type="text" id="newNombre" placeholder="Nombre" class="w-full p-2 border rounded" required>
+                <input type="text" id="newApellido" placeholder="Apellido" class="w-full p-2 border rounded" required>
+                <input type="text" id="newDni" placeholder="DNI" class="w-full p-2 border rounded" required>
+                <input type="email" id="newEmail" placeholder="Email" class="w-full p-2 border rounded" required>
+                <select id="newRol" class="w-full p-2 border rounded bg-white">
+                    <option value="estudiante">Estudiante</option>
+                    <option value="familia">Familia / Tutor</option>
+                    <option value="profesor">Profesor</option>
+                    <option value="preceptor">Preceptor</option>
+                    <option value="admin">Administrativo</option>
+                </select>
+                <button type="submit" class="w-full bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700">Guardar Cambios</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL DE BOLETÍN INDIVIDUAL (Para vista de profesor) -->
+    <div id="studentBulletinModal" class="modal">
+        <div class="modal-content fade-in w-full max-w-4xl">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Boletín Individual</h2>
+                    <p id="modalStudentName" class="text-school font-bold"></p>
+                </div>
+                <button onclick="closeModal('studentBulletinModal')" class="text-gray-400 hover:text-red-600"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <div id="modalStudentGrades" class="overflow-x-auto">
+                <!-- Aquí se inyectará la tabla de notas del alumno -->
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-gray-900 text-gray-400 py-8 mt-auto border-t-4 border-school">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-6 md:mb-0 text-center md:text-left flex items-center gap-4">
+                    <img src="logo de crisoltech.jpg" alt="Logo Crisol" class="h-12 w-12 rounded-full border-2 border-white">
+                    <div>
+                        <h4 class="text-white font-bold text-lg">Crisol Tech</h4>
+                        <p class="text-xs">Soporte: <a href="mailto:crisoltech.info@gmail.com" class="text-blue-400 hover:underline">crisoltech.info@gmail.com</a></p>
+                    </div>
+                </div>
+                <div class="text-center md:text-right">
+                    <p class="text-sm">&copy; 2025 Todos los derechos reservados.</p>
+                    <p class="text-xs mt-1 text-gray-500">Desarrollado por Carolina Martinez.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // DATOS DE INFORMACIÓN
+        const INFO_DETAILS = {
+            oferta: "Tecnicaturas en Electromecánica, MMO y Programación. Formación práctica intensiva para 7mo año.",
+            comunidad: "Proyectos integradores, ferias de ciencias y vinculación con el sector productivo local.",
+            innovacion: "Sistema de Boletín Digital 2.0, desarrollado localmente para agilizar la comunicación escolar.",
+            contacto: "Río Grande, Tierra del Fuego. Tel: (2964) 42-XXXX. Administración: Lun a Vie 8-20hs."
+        };
+
+        // BASE DE DATOS
+        const DB = {
+            users: [
+                { id: 1, nombre: 'Carolina', apellido: 'Martinez', dni: '45.123.456', email: 'alumno@escuela.edu', pass: '123', rol: 'estudiante', curso: '7mo Año "A"' },
+                { id: 2, nombre: 'Roberto', apellido: 'Gómez', dni: '20.111.222', email: 'profe@escuela.edu', pass: '123', rol: 'profesor' },
+                { id: 3, nombre: 'Laura', apellido: 'Fernández', dni: '30.333.444', email: 'prece@escuela.edu', pass: '123', rol: 'preceptor' },
+                { id: 4, nombre: 'Admin', apellido: 'General', dni: '10.000.000', email: 'admin@escuela.edu', pass: '123', rol: 'admin' },
+                // Agregamos más estudiantes de prueba
+                { id: 5, nombre: 'Juan', apellido: 'Pérez', dni: '46.000.111', email: 'juan@escuela.edu', pass: '123', rol: 'estudiante', curso: '7mo Año "A"' },
+                { id: 6, nombre: 'Maria', apellido: 'Lopez', dni: '46.222.333', email: 'maria@escuela.edu', pass: '123', rol: 'estudiante', curso: '7mo Año "B"' },
+            ],
+            grades: [
+                // Notas de Carolina (ID 1)
+                { id: 1, alumnoId: 1, materia: 'Programación IV', i1: 'MB', i2: 'MB', c1: 9, i3: 'MB', i4: 'MB', c2: 10, final: 9.50, obs: 'Excelente desempeño.' },
+                { id: 2, alumnoId: 1, materia: 'Redes de Datos', i1: 'B', i2: 'B', c1: 8, i3: 'B', i4: 'MB', c2: 9, final: 8.50, obs: 'Mejoró mucho en prácticas.' },
+                { id: 3, alumnoId: 1, materia: 'Hardware', i1: 'MB', i2: 'MB', c1: 10, i3: 'MB', i4: 'MB', c2: 10, final: 10, obs: '' },
+                { id: 4, alumnoId: 1, materia: 'Prácticas Profesionalizantes', i1: 'MB', i2: 'MB', c1: 9, i3: 'MB', i4: 'MB', c2: 10, final: 9.50, obs: 'Responsable y proactiva.' },
+                { id: 5, alumnoId: 1, materia: 'Marco Jurídico', i1: 'B', i2: 'B', c1: 7, i3: 'B', i4: 'B', c2: 8, final: 7.50, obs: '' },
+                { id: 6, alumnoId: 1, materia: 'Matemática', i1: 'R', i2: 'B', c1: 6, i3: 'B', i4: 'B', c2: 7, final: 6.50, obs: 'Reforzar funciones.' },
+                { id: 7, alumnoId: 1, materia: 'Inglés Técnico', i1: 'B', i2: 'MB', c1: 8, i3: 'MB', i4: 'MB', c2: 9, final: 8.50, obs: '' },
+                { id: 8, alumnoId: 1, materia: 'Asistencia', i1: 'MB', i2: 'MB', c1: 10, i3: 'MB', i4: 'MB', c2: 10, final: 10, obs: '' },
+                { id: 9, alumnoId: 1, materia: 'Autogestión', i1: 'MB', i2: 'MB', c1: 9, i3: 'MB', i4: 'MB', c2: 9, final: 9, obs: '' },
+                { id: 10, alumnoId: 1, materia: 'EDI', i1: 'B', i2: 'B', c1: 8, i3: 'B', i4: 'MB', c2: 9, final: 8.50, obs: '' },
+                
+                // Notas de Juan (ID 5) - Ejemplo para mostrar que cambia
+                { id: 11, alumnoId: 5, materia: 'Programación IV', i1: 'R', i2: 'B', c1: 6, i3: 'B', i4: 'B', c2: 7, final: 6.50, obs: 'Falta entregar TP final.' },
+                { id: 12, alumnoId: 5, materia: 'Redes de Datos', i1: 'B', i2: 'B', c1: 7, i3: 'B', i4: 'B', c2: 7, final: 7, obs: '' },
+                
+                // Notas de Maria (ID 6)
+                 { id: 13, alumnoId: 6, materia: 'Programación IV', i1: 'MB', i2: 'MB', c1: 10, i3: 'MB', i4: 'MB', c2: 10, final: 10, obs: '' },
+            ],
+            asistencias: [
+                { id: 1, alumnoId: 1, fecha: '2025-03-10', tipo: 'Falta', justificada: true, obs: 'Certificado médico' },
+                { id: 2, alumnoId: 1, fecha: '2025-04-05', tipo: 'Tardanza', justificada: false, obs: '15 min tarde' },
+                { id: 3, alumnoId: 5, fecha: '2025-05-20', tipo: 'Falta', justificada: false, obs: 'Sin aviso' }
+            ]
+        };
+
+        // --- LÓGICA ---
+        const app = {
+            user: null,
+            editingGradeId: null,
+            SECURITY_CODES: { 
+                profesor: 'PROFE2025', 
+                preceptor: 'PRECE2025', 
+                admin: 'ADMIN2025' 
+            },
+
+            init: () => { app.setView('landing'); },
+            
+            login: (email, pass) => {
+                const found = DB.users.find(u => u.email === email && u.pass === pass);
+                if (found) {
+                    app.user = found;
+                    if (found.rol === 'estudiante' || found.rol === 'familia') app.setView('student', found.id); 
+                    else if (found.rol === 'profesor') app.setView('teacher');
+                    else if (found.rol === 'preceptor') app.setView('preceptor');
+                    else app.setView('admin');
+                } else {
+                    alert('Credenciales incorrectas.');
+                }
+            },
+
+            register: (data) => {
+                if (data.rol !== 'estudiante' && data.rol !== 'familia') {
+                    const correctCode = app.SECURITY_CODES[data.rol];
+                    if (data.securityCode !== correctCode) {
+                        alert('Código de seguridad incorrecto. Solicítelo en Dirección.');
+                        return;
+                    }
+                }
+                
+                DB.users.push({ id: DB.users.length + 1, ...data });
+                alert(`Usuario ${data.nombre} registrado con éxito.`);
+                app.setView('login');
+            },
+
+            logout: () => { app.user = null; app.setView('landing'); },
+
+            setView: (viewName, param = null) => {
+                const root = document.getElementById('app-root');
+                root.innerHTML = '';
+                if (viewName === 'landing') views.renderLanding(root);
+                else if (viewName === 'login') views.renderLogin(root);
+                else if (viewName === 'register') views.renderRegister(root);
+                else if (viewName === 'student') views.renderStudent(root, param); 
+                else if (viewName === 'teacher') views.renderTeacher(root);
+                else if (viewName === 'preceptor') views.renderPreceptor(root);
+                else if (viewName === 'admin') views.renderAdmin(root);
+                views.updateNavbar();
+                lucide.createIcons();
+            },
+
+            // Admin Actions
+            deleteUser: (id) => { 
+                if(confirm('¿Seguro desea eliminar este usuario?')) { 
+                    const idx = DB.users.findIndex(u => u.id === id); 
+                    if(idx > -1) { DB.users.splice(idx, 1); app.setView('admin'); } 
+                } 
+            },
+            
+            editUser: (id) => {
+                const user = DB.users.find(u => u.id === id);
+                if (user) {
+                    document.getElementById('editUserId').value = user.id;
+                    document.getElementById('newNombre').value = user.nombre;
+                    document.getElementById('newApellido').value = user.apellido;
+                    document.getElementById('newDni').value = user.dni;
+                    document.getElementById('newEmail').value = user.email;
+                    document.getElementById('newRol').value = user.rol;
+                    openModal('userModal');
+                }
+            },
+
+            saveUser: () => { 
+                const id = document.getElementById('editUserId').value;
+                const newData = {
+                    nombre: document.getElementById('newNombre').value,
+                    apellido: document.getElementById('newApellido').value,
+                    dni: document.getElementById('newDni').value,
+                    email: document.getElementById('newEmail').value,
+                    rol: document.getElementById('newRol').value,
+                    pass: '123' 
+                };
+
+                if (id) {
+                    const idx = DB.users.findIndex(u => u.id == id);
+                    if (idx > -1) DB.users[idx] = { ...DB.users[idx], ...newData };
+                } else {
+                    DB.users.push({ id: DB.users.length + 1, ...newData });
+                }
+                
+                closeModal('userModal'); 
+                app.setView('admin'); 
+            },
+            openCreateUserModal: () => {
+                document.getElementById('editUserId').value = ''; 
+                document.getElementById('newNombre').value = '';
+                document.getElementById('newApellido').value = '';
+                document.getElementById('newDni').value = '';
+                document.getElementById('newEmail').value = '';
+                openModal('userModal');
+            },
+
+            // Teacher Actions
+            toggleEditGrade: (id) => {
+                if (app.editingGradeId === id) {
+                    const row = document.getElementById(`row-${id}`);
+                    const inputs = row.querySelectorAll('input');
+                    const g = DB.grades.find(g => g.id === id);
+                    g.i1=inputs[0].value; g.i2=inputs[1].value; g.c1=inputs[2].value; 
+                    g.i3=inputs[3].value; g.i4=inputs[4].value; g.c2=inputs[5].value; 
+                    g.final=inputs[6].value; g.obs=inputs[7].value;
+                    app.editingGradeId = null;
+                } else {
+                    app.editingGradeId = id;
+                }
+                app.setView('teacher');
+            },
+            
+            showStudentBulletin: (studentId) => {
+                const student = DB.users.find(u => u.id === studentId);
+                const grades = DB.grades.filter(g => g.alumnoId === studentId);
+                
+                document.getElementById('modalStudentName').innerText = `${student.apellido}, ${student.nombre}`;
+                
+                let html = `
+                    <table class="w-full text-left whitespace-nowrap border border-gray-200">
+                        <thead class="bg-gray-800 text-white text-xs uppercase">
+                            <tr><th class="p-2">Materia</th><th class="p-2 text-center">1° C</th><th class="p-2 text-center">2° C</th><th class="p-2 text-center">Final</th><th class="p-2">Obs</th></tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                if (grades.length > 0) {
+                    html += grades.map(g => `
+                        <tr class="border-b text-sm">
+                            <td class="p-2 font-bold">${g.materia}</td>
+                            <td class="p-2 text-center">${g.c1}</td>
+                            <td class="p-2 text-center">${g.c2}</td>
+                            <td class="p-2 text-center font-bold">${g.final}</td>
+                            <td class="p-2 text-xs italic">${g.obs || ''}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    html += `<tr><td colspan="5" class="p-4 text-center text-gray-500">No hay notas registradas.</td></tr>`;
+                }
+                
+                html += `</tbody></table>`;
+                
+                document.getElementById('modalStudentGrades').innerHTML = html;
+                openModal('studentBulletinModal');
+            },
+            
+            // Preceptor Actions
+            addAttendance: () => {
+                const fecha = document.getElementById('asistFecha').value;
+                const tipo = document.getElementById('asistTipo').value;
+                const just = document.getElementById('asistJust').checked;
+                const obs = document.getElementById('asistObs').value;
+                const alumnoId = document.getElementById('asistAlumno').value;
+                
+                if(!fecha) return alert('Ingrese una fecha');
+                
+                DB.asistencias.push({ id: Date.now(), alumnoId: parseInt(alumnoId), fecha, tipo, justificada: just, obs });
+                alert('Asistencia registrada.');
+                app.setView('preceptor');
+            }
+        };
+
+        const views = {
+            updateNavbar: () => {
+                const nav = document.getElementById('navbar-actions');
+                if (app.user) {
+                    nav.innerHTML = `<div class="hidden md:block text-right mr-2"><p class="text-sm font-bold text-gray-700">${app.user.nombre} ${app.user.apellido}</p><span class="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded-full uppercase font-bold">${app.user.rol}</span></div><button onclick="app.logout()" class="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-full hover:bg-gray-700 font-bold text-sm"><i data-lucide="log-out" class="w-4 h-4"></i> Salir</button>`;
+                } else {
+                    nav.innerHTML = `<button onclick="app.setView('login')" class="text-gray-600 hover:text-school font-semibold mr-4">Ingresar</button><button onclick="app.setView('register')" class="bg-school text-white px-5 py-2 rounded-full font-bold hover:hover-school shadow-md">Registrarse</button>`;
+                }
+            },
+            renderLanding: (container) => {
+                 container.innerHTML = `
+                    <div class="relative bg-gray-900 text-white py-32 px-6 text-center overflow-hidden fade-in"><div class="absolute inset-0 opacity-70 bg-black"></div><div class="absolute inset-0 z-0" style="background-image: url('foto del edificio del colegio.jpg'); background-size: cover; background-position: center;"></div><div class="relative z-10 max-w-4xl mx-auto"><img src="logo del colegio.png" class="h-32 w-32 mx-auto mb-6 object-contain bg-white rounded-full p-2 shadow-xl"><h1 class="text-4xl md:text-6xl font-extrabold mb-2 tracking-tight">Colegio Provincial</h1><h2 class="text-2xl md:text-4xl font-bold text-white mb-4">"Dr. Ernesto Guevara"</h2><p class="text-lg bg-school/80 inline-block px-6 py-2 rounded-full mb-8">Centro Integral de Educación Técnica Profesional</p><div class="flex justify-center"><button onclick="app.setView('login')" class="bg-white text-school font-bold py-3 px-8 rounded-full shadow-xl hover:bg-gray-100 flex items-center gap-2"><i data-lucide="user"></i> Acceder al Boletín</button></div></div></div>
+                    <div class="container mx-auto px-6 py-16 -mt-10 relative z-20"><div class="grid md:grid-cols-4 gap-6">
+                        <div onclick="showInfo('oferta')" class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-school transform hover:-translate-y-2 transition cursor-pointer text-center"><div class="text-school mb-4 flex justify-center"><i data-lucide="book-open" class="w-10 h-10"></i></div><h3 class="text-lg font-bold text-gray-800">Oferta Académica</h3></div>
+                        <div onclick="showInfo('comunidad')" class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-gray-800 transform hover:-translate-y-2 transition cursor-pointer text-center"><div class="text-gray-800 mb-4 flex justify-center"><i data-lucide="users" class="w-10 h-10"></i></div><h3 class="text-lg font-bold text-gray-800">Comunidad</h3></div>
+                        <div onclick="showInfo('innovacion')" class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-blue-600 transform hover:-translate-y-2 transition cursor-pointer text-center"><div class="text-blue-600 mb-4 flex justify-center"><i data-lucide="monitor" class="w-10 h-10"></i></div><h3 class="text-lg font-bold text-gray-800">Innovación</h3></div>
+                        <div onclick="showInfo('contacto')" class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-green-600 transform hover:-translate-y-2 transition cursor-pointer text-center"><div class="text-green-600 mb-4 flex justify-center"><i data-lucide="map-pin" class="w-10 h-10"></i></div><h3 class="text-lg font-bold text-gray-800">Contacto</h3></div>
+                    </div></div>`;
+            },
+            renderLogin: (container) => {
+                 container.innerHTML = `
+                    <div class="flex-grow flex items-center justify-center px-4 py-12 fade-in" style="background-color: #f3f4f6;">
+                        <div class="bg-white w-full max-w-md p-8 rounded-xl shadow-2xl border-t-4 border-school">
+                            <div class="text-center mb-8">
+                                <img src="logo del colegio.png" class="h-20 w-20 mx-auto mb-4 object-contain">
+                                <h2 class="text-3xl font-bold text-gray-800">Ingreso al Sistema</h2>
+                            </div>
+                            <form onsubmit="event.preventDefault(); app.login(this.email.value, this.pass.value);" class="space-y-5">
+                                <input type="email" name="email" placeholder="Email Institucional" class="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-red-500" required>
+                                <input type="password" name="pass" placeholder="Contraseña" class="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-red-500" required>
+                                <button type="submit" class="w-full bg-school hover:hover-school text-white font-bold py-3 rounded-lg shadow-md transition">Ingresar</button>
+                            </form>
+                            <div class="mt-4 text-center">
+                                <a href="#" onclick="openModal('recoverModal')" class="text-sm text-blue-600 hover:underline">¿Olvidaste tu contraseña?</a>
+                            </div>
+                            <div class="mt-6 text-center text-xs text-gray-400 border-t pt-4">
+                                <p>Alumno: alumno@escuela.edu / 123</p>
+                                <p>Profe: profe@escuela.edu / 123</p>
+                                <p>Admin: admin@escuela.edu / 123</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+            renderRegister: (container) => {
+                container.innerHTML = `
+                    <div class="flex-grow flex items-center justify-center px-4 py-12 fade-in">
+                        <div class="bg-white w-full max-w-lg p-8 rounded-2xl shadow-2xl border-t-4 border-gray-800">
+                            <div class="text-center mb-6"><h2 class="text-3xl font-bold text-gray-800">Crear Cuenta</h2><p class="text-gray-500">Sumate a la comunidad educativa</p></div>
+                            <form onsubmit="event.preventDefault(); app.register({nombre: this.nombre.value, apellido: this.apellido.value, dni: this.dni.value, email: this.email.value, pass: this.pass.value, rol: this.rol.value, securityCode: this.securityCode ? this.securityCode.value : null});" class="space-y-4">
+                                <div class="grid grid-cols-2 gap-4"><input type="text" name="nombre" placeholder="Nombre" class="w-full p-3 border rounded-lg" required><input type="text" name="apellido" placeholder="Apellido" class="w-full p-3 border rounded-lg" required></div>
+                                <input type="text" name="dni" placeholder="DNI" class="w-full p-3 border rounded-lg" required>
+                                <input type="email" name="email" placeholder="Email Institucional" class="w-full p-3 border rounded-lg" required>
+                                <input type="password" name="pass" placeholder="Contraseña" class="w-full p-3 border rounded-lg" required>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-bold text-gray-600">Tipo de Usuario:</label>
+                                    <select name="rol" class="w-full p-3 border rounded-lg bg-white" onchange="document.getElementById('securityField').style.display = (this.value !== 'estudiante' && this.value !== 'familia') ? 'block' : 'none';">
+                                        <option value="estudiante">Estudiante</option>
+                                        <option value="familia">Familia / Tutor</option>
+                                        <option value="profesor">Profesor</option>
+                                        <option value="preceptor">Preceptor</option>
+                                        <option value="admin">Administrador</option>
+                                    </select>
+                                </div>
+                                <div id="securityField" style="display:none;">
+                                    <input type="password" name="securityCode" placeholder="Código de Seguridad (Requerido)" class="w-full p-3 border rounded-lg bg-red-50 text-red-800 border-red-200">
+                                    <p class="text-xs text-gray-500 mt-1">* Solo para personal autorizado.</p>
+                                </div>
+                                <button type="submit" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 rounded-lg shadow-md transition">Registrarse</button>
+                            </form>
+                            <button onclick="app.setView('login')" class="mt-4 text-gray-500 text-sm w-full text-center hover:text-gray-800">← Volver al Login</button>
+                        </div>
+                    </div>
+                `;
+            },
+            renderStudent: (container, studentId = null) => {
+                const targetId = studentId || app.user.id;
+                const student = DB.users.find(u => u.id === targetId);
+                
+                // Filtrar notas del alumno específico
+                const myGrades = DB.grades.filter(g => g.alumnoId === targetId);
+                const myAsist = DB.asistencias.filter(a => a.alumnoId === targetId);
+
+                const rows = myGrades.map(g => `<tr class="hover:bg-gray-50 border-b text-sm"><td class="p-3 font-bold text-gray-800">${g.materia}</td><td class="p-3 text-center text-gray-600">${g.i1}</td><td class="p-3 text-center text-gray-600">${g.i2}</td><td class="p-3 text-center font-bold ${g.c1>=7?'text-green-600':'text-red-600'}">${g.c1}</td><td class="p-3 text-center text-gray-600 border-l">${g.i3}</td><td class="p-3 text-center text-gray-600">${g.i4}</td><td class="p-3 text-center font-bold ${g.c2>=7?'text-green-600':'text-red-600'}">${g.c2}</td><td class="p-3 text-center font-bold bg-gray-100 border-l">${g.final}</td><td class="p-3 text-xs text-gray-500 italic max-w-xs truncate" title="${g.obs}">${g.obs||'-'}</td></tr>`).join('');
+                const asistRows = myAsist.map(a => `<tr class="border-b text-sm hover:bg-gray-50"><td class="p-3">${a.fecha}</td><td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ${a.tipo==='Falta'?'bg-red-100 text-red-700':'bg-yellow-100 text-yellow-700'}">${a.tipo}</span></td><td class="p-3 text-center">${a.justificada ? '<i data-lucide="check" class="w-4 h-4 text-green-500 mx-auto"></i>' : '<i data-lucide="x" class="w-4 h-4 text-red-500 mx-auto"></i>'}</td><td class="p-3 text-gray-500">${a.obs}</td></tr>`).join('');
+
+                container.innerHTML = `
+                    <div class="p-6 max-w-7xl mx-auto w-full fade-in">
+                        <div class="bg-white rounded-xl shadow-md p-6 mb-6 flex justify-between items-center border-l-8 border-school">
+                            <div><h2 class="text-2xl font-bold text-gray-800">Boletín Digital 7mo Año</h2><p class="text-gray-500">Alumno: ${student.apellido}, ${student.nombre} | DNI: ${student.dni}</p></div>
+                            <i data-lucide="graduation-cap" class="w-10 h-10 text-school"></i>
+                        </div>
+                        ${myGrades.length > 0 ? `
+                        <div class="bg-white rounded-xl shadow-lg overflow-hidden overflow-x-auto mb-8">
+                            <div class="bg-gray-50 px-4 py-2 border-b font-bold text-gray-700">Calificaciones</div>
+                            <table class="w-full text-left whitespace-nowrap">
+                                <thead class="bg-gray-800 text-white text-xs uppercase">
+                                    <tr><th class="p-3" rowspan="2">Materia</th><th class="p-3 text-center border-r border-gray-600" colspan="3">1° Cuatrimestre</th><th class="p-3 text-center border-r border-gray-600" colspan="3">2° Cuatrimestre</th><th class="p-3 text-center" rowspan="2">Final</th><th class="p-3" rowspan="2">Observaciones</th></tr>
+                                    <tr><th class="p-2 text-center bg-gray-700">1° Inf</th><th class="p-2 text-center bg-gray-700">2° Inf</th><th class="p-2 text-center bg-gray-700">Nota</th><th class="p-2 text-center bg-gray-700">1° Inf</th><th class="p-2 text-center bg-gray-700">2° Inf</th><th class="p-2 text-center bg-gray-700">Nota</th></tr>
+                                </thead>
+                                <tbody>${rows}</tbody>
+                            </table>
+                        </div>` : '<p class="text-center p-4 bg-white rounded shadow mb-6">No hay notas registradas para este alumno.</p>'}
+
+                        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                            <div class="bg-gray-50 px-4 py-2 border-b font-bold text-gray-700">Registro de Asistencias</div>
+                            <table class="w-full text-left">
+                                <thead class="bg-gray-100 text-gray-600 text-xs uppercase"><tr><th class="p-3">Fecha</th><th class="p-3">Tipo</th><th class="p-3 text-center">Justificada</th><th class="p-3">Detalle</th></tr></thead>
+                                <tbody>${asistRows}</tbody>
+                            </table>
+                        </div>
+                        
+                        ${app.user.rol !== 'estudiante' && app.user.rol !== 'familia' ? `<button onclick="app.setView('${app.user.rol === 'admin' ? 'admin' : 'teacher'}')" class="mt-6 bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">← Volver al Panel</button>` : ''}
+                    </div>`;
+            },
+
+            renderTeacher: (container) => {
+                // En el panel docente, mostramos TODOS los alumnos con sus notas de la materia del profe (o todas si es general)
+                // Para simplificar la demo, mostraremos todas las notas disponibles en DB.grades
+                const rows = DB.grades.map(g => {
+                    const isEditing = app.editingGradeId === g.id;
+                    // Buscar nombre del alumno basado en ID
+                    const alumno = DB.users.find(u => u.id === g.alumnoId);
+                    const nombreAlumno = alumno ? `${alumno.apellido}, ${alumno.nombre}` : 'Desconocido';
+
+                    return `<tr id="row-${g.id}" class="hover:bg-purple-50 border-b text-sm">
+                        <td class="p-3 font-medium text-blue-600 cursor-pointer hover:underline" onclick="app.showStudentBulletin(${g.alumnoId})">${nombreAlumno}</td>
+                        <td class="p-3 text-gray-600 text-xs">${g.materia}</td>
+                        ${isEditing?`<td class="p-1"><input type="text" value="${g.i1}" class="w-8 text-center border rounded"></td><td class="p-1"><input type="text" value="${g.i2}" class="w-8 text-center border rounded"></td><td class="p-1"><input type="number" value="${g.c1}" class="w-10 text-center border rounded font-bold"></td><td class="p-1"><input type="text" value="${g.i3}" class="w-8 text-center border rounded"></td><td class="p-1"><input type="text" value="${g.i4}" class="w-8 text-center border rounded"></td><td class="p-1"><input type="number" value="${g.c2}" class="w-10 text-center border rounded font-bold"></td><td class="p-1"><input type="number" value="${g.final}" class="w-12 text-center border rounded font-bold bg-gray-100"></td><td class="p-1"><input type="text" value="${g.obs}" class="w-full border rounded px-1"></td><td class="p-2 text-center"><button onclick="app.toggleEditGrade(${g.id})" class="bg-green-100 text-green-600 p-1 rounded hover:bg-green-200"><i data-lucide="save" class="w-4 h-4"></i></button></td>`:`<td class="p-3 text-center">${g.i1}</td><td class="p-3 text-center">${g.i2}</td><td class="p-3 text-center font-bold">${g.c1}</td><td class="p-3 text-center">${g.i3}</td><td class="p-3 text-center">${g.i4}</td><td class="p-3 text-center font-bold">${g.c2}</td><td class="p-3 text-center font-bold bg-gray-50">${g.final}</td><td class="p-3 text-xs text-gray-500 truncate max-w-xs">${g.obs}</td><td class="p-2 text-center"><button onclick="app.toggleEditGrade(${g.id})" class="bg-blue-100 text-blue-600 p-1 rounded hover:bg-blue-200"><i data-lucide="edit-2" class="w-4 h-4"></i></button></td>`}</tr>`;
+                }).join('');
+                
+                container.innerHTML = `<div class="p-6 max-w-7xl mx-auto w-full fade-in"><div class="bg-white rounded-xl shadow-md p-6 mb-6 border-l-8 border-purple-600"><h2 class="text-2xl font-bold text-gray-800">Panel Docente</h2><p class="text-gray-500">Gestión de Notas</p></div><div class="bg-white rounded-xl shadow-lg overflow-hidden overflow-x-auto"><div class="bg-yellow-50 p-3 text-sm text-yellow-800 mb-2 border-l-4 border-yellow-500">Tip: Haga clic en el nombre del alumno para ver su boletín completo.</div><table class="w-full text-left whitespace-nowrap"><thead class="bg-purple-100 text-purple-900 text-xs uppercase"><tr><th class="p-3">Alumno</th><th class="p-3">Materia</th><th class="p-3 text-center">1° I</th><th class="p-3 text-center">2° I</th><th class="p-3 text-center">1° C</th><th class="p-3 text-center">1° I</th><th class="p-3 text-center">2° I</th><th class="p-3 text-center">2° C</th><th class="p-3 text-center">Final</th><th class="p-3">Observaciones</th><th class="p-3 text-center">Acción</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+            },
+
+            renderPreceptor: (container) => {
+                // Lista de alumnos para el selector
+                const alumnosOptions = DB.users.filter(u => u.rol === 'estudiante').map(u => `<option value="${u.id}">${u.apellido}, ${u.nombre}</option>`).join('');
+
+                container.innerHTML = `
+                    <div class="p-6 max-w-4xl mx-auto w-full fade-in">
+                        <div class="bg-white rounded-xl shadow-md p-6 mb-6 border-l-8 border-yellow-500"><h2 class="text-2xl font-bold text-gray-800">Panel Preceptoría</h2><p class="text-gray-500">Carga de Asistencias</p></div>
+                        
+                        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+                            <h3 class="font-bold text-lg mb-4">Nueva Asistencia</h3>
+                            <form onsubmit="event.preventDefault(); app.addAttendance();" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <select id="asistAlumno" class="p-2 border rounded bg-white col-span-2 md:col-span-1">
+                                    <option value="">Seleccione Alumno...</option>
+                                    ${alumnosOptions}
+                                </select>
+                                <input type="date" id="asistFecha" class="p-2 border rounded">
+                                <select id="asistTipo" class="p-2 border rounded"><option>Falta</option><option>Tardanza</option><option>Retiro Anticipado</option></select>
+                                <div class="flex items-center gap-2"><input type="checkbox" id="asistJust" class="w-5 h-5"><label>Justificada</label></div>
+                                <input type="text" id="asistObs" placeholder="Observación (Ej: Certificado médico)" class="p-2 border rounded col-span-2">
+                                <button class="col-span-2 bg-yellow-500 text-white font-bold py-2 rounded hover:bg-yellow-600">Guardar Asistencia</button>
+                            </form>
+                        </div>
+
+                        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                             <div class="bg-gray-50 px-4 py-2 border-b font-bold text-gray-700">Historial Reciente</div>
+                             <table class="w-full text-left text-sm">
+                                <thead class="bg-gray-100"><tr><th class="p-3">Alumno</th><th class="p-3">Fecha</th><th class="p-3">Tipo</th><th class="p-3">Justificada</th><th class="p-3">Obs</th></tr></thead>
+                                <tbody>
+                                    ${DB.asistencias.map(a => {
+                                        const alum = DB.users.find(u => u.id === a.alumnoId);
+                                        return `<tr><td class="p-3 font-bold">${alum ? alum.apellido : 'Desc.'}</td><td class="p-3 border-b">${a.fecha}</td><td class="p-3 border-b">${a.tipo}</td><td class="p-3 border-b">${a.justificada?'SI':'NO'}</td><td class="p-3 border-b text-gray-500">${a.obs}</td></tr>`;
+                                    }).join('')}
+                                </tbody>
+                             </table>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderAdmin: (container) => {
+                const rows = DB.users.map(u => `<tr class="hover:bg-gray-50 border-b"><td class="p-4 font-medium text-gray-800">${u.apellido}, ${u.nombre}</td><td class="p-4 text-gray-500">${u.dni || '---'}</td><td class="p-4 text-blue-600">${u.email}</td><td class="p-4"><span class="px-2 py-1 bg-gray-200 rounded text-xs uppercase font-bold">${u.rol}</span></td><td class="p-4 flex gap-2"><button onclick="app.editUser(${u.id})" class="p-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200"><i data-lucide="edit" class="w-4 h-4"></i></button><button onclick="app.deleteUser(${u.id})" class="p-1 bg-red-100 text-red-600 rounded hover:bg-red-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td></tr>`).join('');
+                container.innerHTML = `<div class="p-6 max-w-7xl mx-auto w-full fade-in"><div class="bg-white rounded-xl shadow-md p-6 mb-6 border-l-8 border-green-600 flex justify-between items-center"><div><h2 class="text-2xl font-bold text-gray-800">Administración</h2><p class="text-gray-500">Control Total del Sistema</p></div><button onclick="app.openCreateUserModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 flex items-center gap-2"><i data-lucide="plus"></i> Nuevo Usuario</button></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div class="bg-white p-6 rounded-xl shadow border border-gray-200 text-center"><h3 class="text-gray-500 text-sm uppercase font-bold">Total Alumnos</h3><p class="text-4xl font-bold text-gray-800 mt-2">${DB.users.filter(u=>u.rol==='estudiante').length}</p></div><div class="bg-white p-6 rounded-xl shadow border border-gray-200 text-center"><h3 class="text-gray-500 text-sm uppercase font-bold">Docentes Activos</h3><p class="text-4xl font-bold text-gray-800 mt-2">${DB.users.filter(u=>u.rol==='profesor').length}</p></div><div class="bg-white p-6 rounded-xl shadow border border-gray-200 text-center"><h3 class="text-gray-500 text-sm uppercase font-bold">Total Usuarios</h3><p class="text-4xl font-bold text-gray-800 mt-2">${DB.users.length}</p></div></div><div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 mt-6"><div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center"><h3 class="font-bold text-gray-700">Directorio de Usuarios</h3></div><div class="overflow-x-auto"><table class="w-full text-left"><thead class="bg-gray-100 text-gray-600"><tr><th class="p-4">Apellido y Nombre</th><th class="p-4">DNI</th><th class="p-4">Email</th><th class="p-4">Rol</th><th class="p-4">Acciones</th></tr></thead><tbody>${rows}</tbody></table></div></div></div>`;
+            }
+        };
+
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        function showInfo(type) {
+            const data = INFO_DETAILS[type];
+            document.getElementById('modalTitle').innerText = type.charAt(0).toUpperCase() + type.slice(1);
+            document.getElementById('modalText').innerText = data;
+            openModal('infoModal');
+        }
+
+        app.init();
+    </script>
+</body>
+</html>
